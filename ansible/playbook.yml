@@ -1,2 +1,26 @@
 ---
+- name: 'Playbook Caso Practico 2'
+  hosts: webservers
+  remote_user: azureuser
+  # become: true
+  vars:
+    zone: 'Europe/Madrid'
 
+  tasks:
+    - name: 'Configurar zona horaria webserver'
+      timezone:
+        name: "{{ zone }}"
+    - name: 'Instalar dependencias webserver'
+      ansible.builtin.dnf:
+        name:
+          - podman
+          - skopeo
+          - httpd-tools
+          - openssl
+        state: present
+    -name: 'Crear directorio de trabajo webserver'
+      ansible.builtin.file:
+      path: /etc/webserver
+      state: directory
+      mode: '0755'
+    -name: ''
