@@ -1,2 +1,5 @@
-[webservers]
-20.108.183.2
+[webserver]
+20.108.183.2 ansible_ssh_private_key_file=~/.ssh/id_rsa_azureuser
+
+[local]
+127.0.0.1

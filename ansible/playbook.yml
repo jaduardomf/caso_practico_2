@@ -1,16 +1,47 @@
 ---
-- name: 'Playbook Caso Practico 2'
-  hosts: webservers
+- name: 'Play 1 - Creación y subida del webserver a ACR'
+  hosts: local
+  connection: local
   remote_user: azureuser
   # become: true
+  vars:
+    acr_user: 'acrjmfcasopractico2'
+    acr_pass: 'KKrIUV3HvBTTYYEme4VdiiGEMdiEZzPILaMPqJVV94+ACRCvSfcp'
+
+  tasks:
+
+    - name: Login al ACR
+      containers.podman.podman_login:
+        username: "{{ acr_user }}"
+        password: "{{ acr_pass }}"
+        registry: acrjmfcasopractico2.azurecr.io
+      tags: play1
+
+    - name: Build and push an image using existing credentials
+      containers.podman.podman_image:
+        name: webserver
+        path: ~/webserver
+        push: true
+        push_args:
+          dest: acrjmfcasopractico2.azurecr.io/web1/
+      tags: play1
+
+- name: 'Play 2 - Zona horaria vm webserver e instalar dependencias'
+  hosts: webserver
+  remote_user: azureuser
+  become: true
+
   vars:
     zone: 'Europe/Madrid'
 
   tasks:
-    - name: 'Configurar zona horaria webserver'
+
+    - name: Configurar zona horaria vm webserver
       timezone:
         name: "{{ zone }}"
-    - name: 'Instalar dependencias webserver'
+      tags: webserver_deploy
+
+    - name: Instalar dependencias
       ansible.builtin.dnf:
         name:
           - podman
@@ -18,9 +49,63 @@
           - httpd-tools
           - openssl
         state: present
-    -name: 'Crear directorio de trabajo webserver'
-      ansible.builtin.file:
-      path: /etc/webserver
-      state: directory
-      mode: '0755'
-    -name: ''
+      tags: webserver_deploy
+
+- name: 'Play 3 - Despliegue webserver en vm azure'
+  hosts: webserver
+  remote_user: azureuser
+  # become: true
+
+  vars:
+    acr_user: 'acrjmfcasopractico2'
+    acr_pass: 'KKrIUV3HvBTTYYEme4VdiiGEMdiEZzPILaMPqJVV94+ACRCvSfcp'
+
+  tasks:
+
+    - name: Login al ACR
+      containers.podman.podman_login:
+        username: "{{ acr_user }}"
+        password: "{{ acr_pass }}"
+        registry: acrjmfcasopractico2.azurecr.io
+      tags: webserver_deploy
+
+    # - name: Pull de imagen webserver desde ACR
+    #   containers.podman.podman_image:
+    #     name: acrjmfcasopractico2.azurecr.io/web1/webserver:latest
+    #   tags: webserver_deploy
+
+    - name: Crear contenedor webserver
+      containers.podman.podman_container:
+        name: webserver
+        image: acrjmfcasopractico2.azurecr.io/web1/webserver
+        # rm: true
+        state: started
+        ports:
+          - 8080:443
+      tags: webserver_deploy
+
+    - name: Generar systemd unit file para container webserver
+      # become: true
+      containers.podman.podman_generate_systemd:
+        name: webserver
+        no_header: true
+        dest: /home/azureuser
+      tags: webserver_deploy
+
+    - name: Copiar systemd unit file a /etc/systemd/system
+      become: true
+      ansible.builtin.copy:
+        src: /home/azureuser/container-webserver.service
+        dest: /etc/systemd/system/container-webserver.service
+        remote_src: true
+      tags: webserver_deploy
+
+    - name: Asegurarse que el container webserver está corriendo y en estado enabled
+      become: true
+      become_method: sudo
+      ansible.builtin.systemd:
+        name: container-webserver
+        daemon_reload: true
+        state: started
+        enabled: true
+      tags: webserver_deploy
