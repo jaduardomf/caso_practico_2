@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      volumes:
+        - name: elastic-pv-storage
+          persistentVolumeClaim:
+            claimName: pvc-managed-csi
+      containers:
+      - name: elasticsearch
+        image: acrjmfcasopractico2.azurecr.io/elastic/elasticsearch:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        ports:
+        - containerPort: 9200
+          name: client
+        - containerPort: 9300
+          name: nodes
+        volumeMounts:
+          - mountPath: "/usr/share/nginx/html"
+            name: elastic-pv-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: persistent-storage
+  namespace: default
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: persistent-storage
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-managed-csi
+  namespace: elasticsearch
+spec:
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 1Gi
+  accessModes:
+    - ReadWriteOnce

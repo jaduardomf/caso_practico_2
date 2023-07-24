@@ -4,3 +4,5 @@ terraform.tfstate
 terraform.tfstate.backup
 .acr_creds
 myplan
+webserver/
+elasticsearch

@@ -1,0 +1,41 @@
+---
+- name: 'Play 1 - '
+  hosts: local
+  connection: local
+  # remote_user: azureuser
+  # become: true
+  vars:
+    acr_user: 'acrjmfcasopractico2'
+    acr_pass: 'KKrIUV3HvBTTYYEme4VdiiGEMdiEZzPILaMPqJVV94+ACRCvSfcp'
+
+  tasks:
+
+    - name: Login al ACR
+      containers.podman.podman_login:
+        username: "{{ acr_user }}"
+        password: "{{ acr_pass }}"
+        registry: acrjmfcasopractico2.azurecr.io
+
+    - name: Push imagen elasticsearch al ACR
+      containers.podman.podman_image:
+        name: elasticsearch
+        push: true
+        push_args:
+          dest: acrjmfcasopractico2.azurecr.io/elastic/
+
+    - name: Crear namespace elasticsearch
+      kubernetes.core.k8s:
+        name: elasticsearch
+        api_version: v1
+        kind: Namespace
+        state: present
+      tags: kube_deploy
+
+    - name: Desplegar app con pvc desde archivo yml
+      kubernetes.core.k8s:
+        state: present
+        src: elasticsearchapp.yml
+      tags: kube_deploy
+
+
+    

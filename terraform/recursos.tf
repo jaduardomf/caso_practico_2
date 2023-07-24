@@ -29,7 +29,7 @@ resource "azurerm_public_ip" "pip_vm" {
 }
 
 resource "azurerm_network_security_group" "nsg" {
-  name                = "acceptanceTestSecurityGroup1"
+  name                = "SecurityGroup1"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -40,7 +40,7 @@ resource "azurerm_network_security_group" "nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "443"
+    destination_port_range     = "8080"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -152,4 +152,11 @@ resource "azurerm_kubernetes_cluster" "aks1" {
   tags = {
     Environment = "Production"
   }
+}
+
+resource "azurerm_role_assignment" "aks1_acr" {
+  principal_id                     = azurerm_kubernetes_cluster.aks1.kubelet_identity[0].object_id
+  role_definition_name             = "AcrPull"
+  scope                            = azurerm_container_registry.acr.id
+  skip_service_principal_aad_check = true
 }
